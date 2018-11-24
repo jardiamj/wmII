@@ -1,0 +1,40 @@
+wmII - weewx driver for Davis Weather Monitor II weather stations
+Copyright 2015 Jardi A. Martinez Jordan
+Distributed under terms of the GPLv3
+
+This driver was derived from the weeWX Ultimeter driver.
+Most methods were adapted from The Weather Update app written by Scott Hassan.
+His software is licensed under the PSF License: http://www.dotfunk.com/projects/weatherupdate/
+
+It should also work with Wizzard and Perception stations but that hasn't been tested since I don't own any.
+
+===============================================================================
+Installation:
+
+Download the wmII.py file and copy it to your weeWX user directory.
+In Debian it is: /usr/share/weeWX/user
+
+Modify your /etc/weewx/weewx.conf to use the wmII driver by selecting:
+station-type = wmII under [Station]:
+
+[Station]  
+    ...
+    # Set to type of station hardware. There must be a corresponding stanza
+    # in this file with a 'driver' parameter indicating the driver to be used.
+    station_type = wmII
+Add a section in the weewx.conf file for the wmII driver, it should look like this:
+[wmII]
+    # This section is for the weewx weather station Davis Weather Monitor II
+
+    # model = station model, e.g., 'Weather Monitor II' or 'Wizard III'
+    # [Optional. Default is 'Weather Monitor II']
+    model = Weather Monitor II
+
+    # The time (in seconds) between LOOP packets.
+    loop_interval = 2
+
+    # The driver to use:
+    driver = user.wmII
+    # Port to be used
+    type = serial
+    port = /dev/ttyUSB0
