@@ -1,0 +1,4 @@
+*.~
+*.pyc
+extensions.py
+__init__.py
