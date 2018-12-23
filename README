@@ -14,7 +14,18 @@ Installation:
 Download the wmII.py file and copy it to your weeWX user directory.
 In Debian it is: /usr/share/weeWX/user
 
-Modify your /etc/weewx/weewx.conf to use the wmII driver by selecting:
+You could install the driver by using git to pull the files into the weewx user folder:
+    git init
+    git remote add origin https://github.com/jardiamj/wmII
+    git pull origin master
+
+Restart weewx and then run: wee_config --reconfigure
+Select the wmII driver when prompted, it'll then ask for the port the station is connected to,
+the defaul port is /dev/ttyUSB0 (my system).
+The configuration section for wmII will be appended to the end of /etc/weewx/weewx.conf file
+
+-------------------------Manuall configuration-------------------------------------------
+you could also manually modify your /etc/weewx/weewx.conf to use the wmII driver by selecting:
 station-type = wmII under [Station]:
 
 [Station]  
@@ -22,6 +33,7 @@ station-type = wmII under [Station]:
     # Set to type of station hardware. There must be a corresponding stanza
     # in this file with a 'driver' parameter indicating the driver to be used.
     station_type = wmII
+
 Add a section in the weewx.conf file for the wmII driver, it should look like this:
 [wmII]
     # This section is for the weewx weather station Davis Weather Monitor II
