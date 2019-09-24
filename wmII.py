@@ -179,13 +179,13 @@ class Station(object):
             raise weewx.WeeWxIOError("Acknowledge not equal 6: %s" % c)
 
     def ReadWRD(self, n, bank, addr):
-		if bank == 0: bankval = 2
-		elif bank == 1: bankval = 4
-		self.serial_port.write("WRD" + chr((n << 4) | bankval)
-                                + chr(addr & 0x00ff) + chr(0xd))
-		self.get_acknowledge()
-		data = self.serial_port.read((n+1)/2)
-		return data
+        if bank == 0: bankval = 2
+        elif bank == 1: bankval = 4
+        self.serial_port.write("WRD" + chr((n << 4) | bankval)
+                        + chr(addr & 0x00ff) + chr(0xd))
+        self.get_acknowledge()
+        data = self.serial_port.read((n+1)/2)
+        return data
 
     def ReadByte(self, bank, addr):
         bytes = self.ReadWRD(2, bank, addr)
@@ -206,15 +206,15 @@ class Station(object):
         self.WriteWRD(4, bank, addr, bytes)
 
     def WriteWRD(self, n, bank, addr, data):
-		if bank == 0: bankval = 1
-		elif bank == 1: bankval = 3
-		self.serial_port.write("WWR" + chr((bankval) | (n << 4))
-                                + chr(addr & 0x00ff) + data + chr(0xd))
-		self.get_acknowledge()
+        if bank == 0: bankval = 1
+        elif bank == 1: bankval = 3
+        self.serial_port.write("WWR" + chr((bankval) | (n << 4))
+                        + chr(addr & 0x00ff) + data + chr(0xd))
+        self.get_acknowledge()
 
     def SendSTART(self):
-		self.serial_port.write("START" + chr(0x0d))
-		self.get_acknowledge()
+        self.serial_port.write("START" + chr(0x0d))
+        self.get_acknowledge()
 
     def SendLOOP(self):
         self.serial_port.write("LOOP" + chr(255) + chr(255) + chr(0x0d))
@@ -252,13 +252,6 @@ class Station(object):
         if weewx.crc16.crc16(buf): #CRC_checksum
             raise weewx.WeeWxIOError("CRC Checksum error")
         return buf
-
-	def SetCalibration(self, tp1cal, tp2cal, rncal, h2mcal, barcal):
-		self.WriteWord(1, 0x0152, tp1cal)
-		self.WriteWord(1, 0x0178, tp2cal)
-		self.WriteWord(1, 0x01D6, rncal)
-		self.WriteWord(1, 0x01DA, h2mcal)
-		self.WriteWord(1, 0x012C, barcal)
 
     def get_readings_with_retry(self, max_tries=5, retry_wait=3):
         for ntries in range(0, max_tries):
@@ -349,9 +342,9 @@ class WMIIConfEditor(weewx.drivers.AbstractConfEditor):
 
 
 # define a main entry point for basic testing of the station without weewx
-# engine and service overhead.  invoke this as follows from the weewx root dir:
+# engine and service overhead.  On a regular Debian insall invoke this as follows:
 #
-# PYTHONPATH=bin python bin/weewx/drivers/wmII.py
+# PYTHONPATH=/usr/share/weewx python /usr/share/weewx/user/wmII.py
 
 if __name__ == '__main__':
     import optparse
@@ -375,6 +368,5 @@ if __name__ == '__main__':
         exit(0)
 
     with Station(options.port, debug_serial=options.debug) as station:
-        station.set_logger_mode()
         while True:
-            print time.time(), station.get_readings()
+            print time.time(), station.parse_readings(station.get_readings_with_retry())
