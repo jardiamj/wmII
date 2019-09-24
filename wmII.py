@@ -25,27 +25,33 @@ import weewx.crc16
 from weewx.units import INHG_PER_MBAR, MILE_PER_KM
 from weeutil.weeutil import timestamp_to_string
 
-DRIVER_NAME = 'wmII'
-DRIVER_VERSION = '0.2'
+DRIVER_NAME = "wmII"
+DRIVER_VERSION = "0.3"
+
 
 def loader(config_dict, _):
     return WMII(**config_dict[DRIVER_NAME])
+
 
 def confeditor_loader():
     return WMIIConfEditor()
 
 
 def logmsg(level, msg):
-    syslog.syslog(level, 'Weather Monitor II: %s' % msg)
+    syslog.syslog(level, "Weather Monitor II: %s" % msg)
+
 
 def logdbg(msg):
     logmsg(syslog.LOG_DEBUG, msg)
 
+
 def loginf(msg):
     logmsg(syslog.LOG_INFO, msg)
 
+
 def logerr(msg):
     logmsg(syslog.LOG_ERR, msg)
+
 
 class WMII(weewx.drivers.AbstractDevice):
     """weewx driver for the Davis Wather Monitor II station
@@ -62,17 +68,18 @@ class WMII(weewx.drivers.AbstractDevice):
     max_tries - how often to retry serial communication before giving up
     [Optional. Default is 5]
     """
-    def __init__(self, **stn_dict):
-        self.model = stn_dict.get('model', 'Weather Monitor II')
-        self.port = stn_dict.get('port', Station.DEFAULT_PORT)
-        self.max_tries = int(stn_dict.get('max_tries', 5))
-        self.retry_wait = int(stn_dict.get('retry_wait', 3))
-        self.loop_interval = int(stn_dict.get('loop_interval', 1))
-        debug_serial = int(stn_dict.get('debug_serial', 0))
-        self.last_rain = None #?
 
-        loginf('driver version is %s' % DRIVER_VERSION)
-        loginf('using serial port %s' % self.port)
+    def __init__(self, **stn_dict):
+        self.model = stn_dict.get("model", "Weather Monitor II")
+        self.port = stn_dict.get("port", Station.DEFAULT_PORT)
+        self.max_tries = int(stn_dict.get("max_tries", 5))
+        self.retry_wait = int(stn_dict.get("retry_wait", 3))
+        self.loop_interval = int(stn_dict.get("loop_interval", 1))
+        debug_serial = int(stn_dict.get("debug_serial", 0))
+        self.last_rain = None  # ?
+
+        loginf("driver version is %s" % DRIVER_VERSION)
+        loginf("using serial port %s" % self.port)
         self.station = Station(self.port, debug_serial=debug_serial)
         self.station.open()
 
@@ -93,10 +100,10 @@ class WMII(weewx.drivers.AbstractDevice):
 
     def genLoopPackets(self):
         while True:
-            packet = {'dateTime': int(time.time() + 0.5),
-                      'usUnits': weewx.US}
-            readings = self.station.get_readings_with_retry(self.max_tries,
-                                                            self.retry_wait)
+            packet = {"dateTime": int(time.time() + 0.5), "usUnits": weewx.US}
+            readings = self.station.get_readings_with_retry(
+                self.max_tries, self.retry_wait
+            )
             data = self.station.parse_readings(readings)
             packet.update(data)
             self._augment_packet(packet)
@@ -104,18 +111,20 @@ class WMII(weewx.drivers.AbstractDevice):
             time.sleep(self.loop_interval)
 
     def _augment_packet(self, packet):
-        packet['rain'] = weewx.wxformulas.calculate_rain(
-            packet['rain_total'], self.last_rain)
-        self.last_rain = packet['rain_total']
+        packet["rain"] = weewx.wxformulas.calculate_rain(
+            packet["rain_total"], self.last_rain
+        )
+        self.last_rain = packet["rain_total"]
+
 
 class Station(object):
-    DEFAULT_PORT = '/dev/ttyUSB0'
+    DEFAULT_PORT = "/dev/ttyUSB0"
 
     def __init__(self, port, debug_serial=0):
         self._debug_serial = debug_serial
         self.port = port
         self.baudrate = 2400
-        self.timeout = 2 # seconds
+        self.timeout = 2  # seconds
         self.serial_port = None
         # Calibrations
         self.tp1cal = 0
@@ -135,8 +144,7 @@ class Station(object):
 
     def open(self):
         logdbg("open serial port %s" % self.port)
-        self.serial_port = serial.Serial(self.port, self.baudrate,
-                                         timeout=self.timeout)
+        self.serial_port = serial.Serial(self.port, self.baudrate, timeout=self.timeout)
 
     def close(self):
         if self.serial_port is not None:
@@ -152,72 +160,81 @@ class Station(object):
         d = self.ReadWRD(3, 1, 0xC8)
         day = self.fromBCD(ord(d[0:1]))
         month = ord(d[1])
-        logdbg("station time: month:%s day:%s %s:%s:%s" % (month, day, hour,
-                                                            min, sec))
+        logdbg("station time: month:%s day:%s %s:%s:%s" % (month, day, hour, min, sec))
         year = datetime.datetime.now().year
         dt = datetime.datetime(year, month, day, hour, min, sec)
-        station_time = (time.mktime(dt.timetuple()))
+        station_time = time.mktime(dt.timetuple())
         return station_time
 
     def set_time(self, t):
         self.get_time()
-        (year, month, day, hour, min, sec, d,d,d) = time.localtime(t)
+        (year, month, day, hour, min, sec, d, d, d) = time.localtime(t)
         logdbg("Attempting to set Station's Time...")
-        self.WriteWRD(6, 1, 0xBE, chr(self.toBCD(hour)) + chr(self.toBCD(min)) +
-                        chr(self.toBCD(sec)))
+        self.WriteWRD(
+            6,
+            1,
+            0xBE,
+            chr(self.toBCD(hour)) + chr(self.toBCD(min)) + chr(self.toBCD(sec)),
+        )
         logdbg("set station time = %s:%s:%s" % (hour, min, sec))
         logdbg("Attempting to set Station's Date")
         self.WriteWRD(3, 1, 0xC8, chr(self.toBCD(day)) + chr(month))
-        logdbg("set station date = mont:%s day:%s" %(month, day))
+        logdbg("set station date = mont:%s day:%s" % (month, day))
 
     def get_acknowledge(self):
         c = self.serial_port.read(1)
-        if c == '':
+        if c == "":
             raise weewx.WeeWxIOError("Acknowledge returned empty: %s" % c)
         ACK = 6
         if ord(c) != ACK:
             raise weewx.WeeWxIOError("Acknowledge not equal 6: %s" % c)
 
     def ReadWRD(self, n, bank, addr):
-        if bank == 0: bankval = 2
-        elif bank == 1: bankval = 4
-        self.serial_port.write("WRD" + chr((n << 4) | bankval)
-                        + chr(addr & 0x00ff) + chr(0xd))
+        if bank == 0:
+            bankval = 2
+        elif bank == 1:
+            bankval = 4
+        self.serial_port.write(
+            "WRD" + chr((n << 4) | bankval) + chr(addr & 0x00FF) + chr(0xD)
+        )
         self.get_acknowledge()
-        data = self.serial_port.read((n+1)/2)
+        data = self.serial_port.read((n + 1) / 2)
         return data
 
     def ReadByte(self, bank, addr):
         bytes = self.ReadWRD(2, bank, addr)
-        rec = struct.unpack('<b', bytes)
+        rec = struct.unpack("<b", bytes)
         n = rec[0]
         return n
 
     def ReadWord(self, bank, addr):
-        time.sleep(1) #Time between consecutive calls for console to catch up
+        time.sleep(1)  # Time between consecutive calls for console to catch up
         bytes = self.ReadWRD(4, bank, addr)
-        rec = struct.unpack('<h', bytes)
+        rec = struct.unpack("<h", bytes)
         n = rec[0]
         return n
 
     def WriteWord(self, bank, addr, n):
-        time.sleep(1) #Time between consecutive calls for console to catch up
-        bytes = struct.pack('<h', n)
+        time.sleep(1)  # Time between consecutive calls for console to catch up
+        bytes = struct.pack("<h", n)
         self.WriteWRD(4, bank, addr, bytes)
 
     def WriteWRD(self, n, bank, addr, data):
-        if bank == 0: bankval = 1
-        elif bank == 1: bankval = 3
-        self.serial_port.write("WWR" + chr((bankval) | (n << 4))
-                        + chr(addr & 0x00ff) + data + chr(0xd))
+        if bank == 0:
+            bankval = 1
+        elif bank == 1:
+            bankval = 3
+        self.serial_port.write(
+            "WWR" + chr((bankval) | (n << 4)) + chr(addr & 0x00FF) + data + chr(0xD)
+        )
         self.get_acknowledge()
 
     def SendSTART(self):
-        self.serial_port.write("START" + chr(0x0d))
+        self.serial_port.write("START" + chr(0x0D))
         self.get_acknowledge()
 
     def SendLOOP(self):
-        self.serial_port.write("LOOP" + chr(255) + chr(255) + chr(0x0d))
+        self.serial_port.write("LOOP" + chr(255) + chr(255) + chr(0x0D))
         self.get_acknowledge()
 
     def GetCalibration(self):
@@ -228,8 +245,18 @@ class Station(object):
         self.hm2cal = self.ReadWord(1, 0x01DA)
         self.barcal = self.ReadWord(1, 0x012C)
         self.windcal = 1600
-        logdbg("Station Calibrations: inTemp:%d, outTemp:%d, rain:%d, inHum:%d, outHum:%d, pressure:%d, wind:%d"
-        % (self.tp1cal, self.tp2cal, self.rncal, self.hm1cal, self.hm2cal, self.barcal, self.windcal))
+        logdbg(
+            "Station Calibrations: inTemp:%d, outTemp:%d, rain:%d, inHum:%d, outHum:%d, pressure:%d, wind:%d"
+            % (
+                self.tp1cal,
+                self.tp2cal,
+                self.rncal,
+                self.hm1cal,
+                self.hm2cal,
+                self.barcal,
+                self.windcal,
+            )
+        )
 
     def SetCalibration(self, tp1cal, tp2cal, rncal, h2mcal, barcal):
         self.WriteWord(1, 0x0152, tp1cal)
@@ -241,15 +268,16 @@ class Station(object):
     def get_readings(self):
         self.SendLOOP()
         c = self.serial_port.read(1)
-        if c == '':
+        if c == "":
             raise weewx.WeeWxIOError("Invalid header: %s" % c)
         if ord(c) != 1:
             raise weewx.WeeWxIOError("Invalid header: %s" % c)
         buf = self.serial_port.read(17)
         if len(buf) != 17:
-            raise weewx.WeeWxIOError("Invalid Lenght of Loop response: len %d"
-                                        % len(buf))
-        if weewx.crc16.crc16(buf): #CRC_checksum
+            raise weewx.WeeWxIOError(
+                "Invalid Lenght of Loop response: len %d" % len(buf)
+            )
+        if weewx.crc16.crc16(buf):  # CRC_checksum
             raise weewx.WeeWxIOError("CRC Checksum error")
         return buf
 
@@ -258,9 +286,11 @@ class Station(object):
             try:
                 buf = self.get_readings()
                 return buf
-            except (serial.serialutil.SerialException, weewx.WeeWxIOError), e:
-                loginf("Failed attempt %d of %d to get readings: %s" %
-                       (ntries + 1, max_tries, e))
+            except (serial.serialutil.SerialException, weewx.WeeWxIOError) as e:
+                loginf(
+                    "Failed attempt %d of %d to get readings: %s"
+                    % (ntries + 1, max_tries, e)
+                )
                 time.sleep(retry_wait)
         else:
             msg = "Max retries (%d) exceeded for readings" % max_tries
@@ -282,39 +312,43 @@ class Station(object):
         2 bytes = not_used
         2 bytes = CRC_checksum ---> pending implementation
         """
-        if len(raw) != 17: warn("wrong size", len(raw))
-        buf = struct.unpack('<hhBhhBBhhh', raw)
+        if len(raw) != 17:
+            warn("wrong size", len(raw))
+        buf = struct.unpack("<hhBhhBBhhh", raw)
         data = dict()
-        data['windSpeed'] = (buf[2] * 1600.) / self.windcal  # mph
-        data['windDir'] = buf[3]  # compass deg
-        data['outTemp'] = (buf[1] + self.tp2cal) / 10.  # degree_F
-        data['rain_total'] = buf[7] / (1.0 * self.rncal)  # inch
-        data['pressure'] = (buf[4] + self.barcal) / 1000.  # inHg
-        data['inTemp'] = (buf[0] + self.tp1cal) / 10.  # degree_F
-        data['outHumidity'] = buf[6] + self.hm2cal  # percent
-        data['inHumidity'] = buf[5] + self.hm1cal  # percent
-        data['rain_total'] = buf[7] / (1.0 * self.rncal)
+        data["windSpeed"] = (buf[2] * 1600.0) / self.windcal  # mph
+        data["windDir"] = buf[3]  # compass deg
+        data["outTemp"] = (buf[1] + self.tp2cal) / 10.0  # degree_F
+        data["rain_total"] = buf[7] / (1.0 * self.rncal)  # inch
+        data["pressure"] = (buf[4] + self.barcal) / 1000.0  # inHg
+        data["inTemp"] = (buf[0] + self.tp1cal) / 10.0  # degree_F
+        data["outHumidity"] = buf[6] + self.hm2cal  # percent
+        data["inHumidity"] = buf[5] + self.hm1cal  # percent
+        data["rain_total"] = buf[7] / (1.0 * self.rncal)
         logdbg("station data: %s" % data)
         return data
 
     @staticmethod
     def toBCD(n):
-    	if n < 0 or n > 99: return 0
-    	n1 = n / 10
-    	n2 = n % 10
-    	m = n1 << 4 | n2
-    	return m
+        if n < 0 or n > 99:
+            return 0
+        n1 = n / 10
+        n2 = n % 10
+        m = n1 << 4 | n2
+        return m
 
     @staticmethod
     def fromBCD(n):
-    	n1 = n & 0x0F
-    	n2 = n >> 4
-    	return n2 * 10 + n1
+        n1 = n & 0x0F
+        n2 = n >> 4
+        return n2 * 10 + n1
+
 
 class WMIIConfEditor(weewx.drivers.AbstractConfEditor):
     @property
     def default_stanza(self):
-        return """
+        return (
+            """
 [wmII]
     # This section is for the weewx weather station Davis Weather Monitor II
 
@@ -332,13 +366,15 @@ class WMIIConfEditor(weewx.drivers.AbstractConfEditor):
     # Serial port such as /dev/ttyS0, /dev/ttyUSB0, or /dev/cua0
     type = serial
     port = %s
-""" % Station.DEFAULT_PORT
+"""
+            % Station.DEFAULT_PORT
+        )
 
     def prompt_for_settings(self):
-        print "Specify the serial port on which the station is connected, for"
-        print "example: /dev/ttyUSB0 or /dev/ttyS0 or /dev/cua0."
-        port = self._prompt('port', Station.DEFAULT_PORT)
-        return {'port': port}
+        print("Specify the serial port on which the station is connected, for")
+        print("example: /dev/ttyUSB0 or /dev/ttyS0 or /dev/cua0.")
+        port = self._prompt("port", Station.DEFAULT_PORT)
+        return {"port": port}
 
 
 # define a main entry point for basic testing of the station without weewx
@@ -346,27 +382,38 @@ class WMIIConfEditor(weewx.drivers.AbstractConfEditor):
 #
 # PYTHONPATH=/usr/share/weewx python /usr/share/weewx/user/wmII.py
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import optparse
 
     usage = """%prog [options] [--help]"""
 
-    syslog.openlog('Weather Monitor II', syslog.LOG_PID | syslog.LOG_CONS)
+    syslog.openlog("Weather Monitor II", syslog.LOG_PID | syslog.LOG_CONS)
     syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
     parser = optparse.OptionParser(usage=usage)
-    parser.add_option('--version', dest='version', action='store_true',
-                      help='display driver version')
-    parser.add_option('--debug', dest='debug', action='store_true',
-                      help='provide additional debug output in log')
-    parser.add_option('--port', dest='port', metavar='PORT',
-                      help='serial port to which the station is connected',
-                      default=Station.DEFAULT_PORT)
+    parser.add_option(
+        "--version", dest="version", action="store_true", help="display driver version"
+    )
+    parser.add_option(
+        "--debug",
+        dest="debug",
+        action="store_true",
+        help="provide additional debug output in log",
+    )
+    parser.add_option(
+        "--port",
+        dest="port",
+        metavar="PORT",
+        help="serial port to which the station is connected",
+        default=Station.DEFAULT_PORT,
+    )
     (options, args) = parser.parse_args()
 
     if options.version:
-        print "Weather Monitor II driver version %s" % DRIVER_VERSION
+        print("Weather Monitor II driver version %s" % DRIVER_VERSION)
         exit(0)
 
     with Station(options.port, debug_serial=options.debug) as station:
         while True:
-            print time.time(), station.parse_readings(station.get_readings_with_retry())
+            print(
+                time.time(), station.parse_readings(station.get_readings_with_retry())
+            )
