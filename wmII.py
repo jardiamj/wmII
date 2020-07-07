@@ -195,7 +195,7 @@ class Station(object):
         elif bank == 1:
             bankval = 4
         self.serial_port.write(
-            "WRD" + chr((n << 4) | bankval) + chr(addr & 0x00FF) + chr(0xD)
+            b'WRD' + chr((n << 4) | bankval) + chr(addr & 0x00FF) + chr(0xD)
         )
         self.get_acknowledge()
         data = self.serial_port.read((n + 1) / 2)
@@ -225,16 +225,16 @@ class Station(object):
         elif bank == 1:
             bankval = 3
         self.serial_port.write(
-            "WWR" + chr((bankval) | (n << 4)) + chr(addr & 0x00FF) + data + chr(0xD)
+            b'WWR' + chr((bankval) | (n << 4)) + chr(addr & 0x00FF) + data + chr(0xD)
         )
         self.get_acknowledge()
 
     def SendSTART(self):
-        self.serial_port.write("START" + chr(0x0D))
+        self.serial_port.write(b'START' + chr(0x0D))
         self.get_acknowledge()
 
     def SendLOOP(self):
-        self.serial_port.write("LOOP" + chr(255) + chr(255) + chr(0x0D))
+        self.serial_port.write(b'LOOP' + chr(255) + chr(255) + chr(0x0D))
         self.get_acknowledge()
 
     def GetCalibration(self):
