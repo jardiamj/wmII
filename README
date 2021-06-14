@@ -8,7 +8,11 @@ His software is licensed under the PSF License: http://www.dotfunk.com/projects/
 
 It should also work with Wizzard and Perception stations but that hasn't been tested since I don't own any.
 
-===============================================================================
+================================================================================
+Thanks Jay R. Jaeger for Adapting it for Python 3 (June, 2021)
+REQUIRES: Python3 (tested under 3.8), weewx Version 4 (or later)
+
+================================================================================
 Installation:
 
 Download the wmII.py file and copy it to your weeWX user directory.

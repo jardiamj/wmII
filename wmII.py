@@ -5,15 +5,15 @@
 # Derived from Ultimeter driver.
 # Most methods were derived from The Weather Update app by:
 #   Scott Hassan <hassan@dotfunk.com>
-
 #
-#	Adapted for Python3 Jay R. Jaeger  cube1us@gmail.com June, 2021
-#          with additional tests added for getting and setting station time
+#//////////////////////////////////////////////////////////////////////////////
+# Adapted for Python3 Jay R. Jaeger  cube1us@gmail.com June, 2021
+# with additional tests added for getting and setting station time
 #
-#	   REQUIRES: Python3 (tested under 3.8), weewx Version 4 (or later)
+# REQUIRES: Python3 (tested under 3.8), weewx Version 4 (or later)
 #
-#	Note:  I left ord(single-byte-value), though strictly speaking
-#	it should probably be done as int(single-byte-value)
+# Note:  I left ord(single-byte-value), though strictly speaking
+# it should probably be done as int(single-byte-value)
 #
 
 """Driver for Davis Weather Monitor II weather station, Should also work with
