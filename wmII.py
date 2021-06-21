@@ -5,6 +5,16 @@
 # Derived from Ultimeter driver.
 # Most methods were derived from The Weather Update app by:
 #   Scott Hassan <hassan@dotfunk.com>
+#
+#//////////////////////////////////////////////////////////////////////////////
+# Adapted for Python3 Jay R. Jaeger  cube1us@gmail.com June, 2021
+# with additional tests added for getting and setting station time
+#
+# REQUIRES: Python3 (tested under 3.8), weewx Version 4 (or later)
+#
+# Note:  I left ord(single-byte-value), though strictly speaking
+# it should probably be done as int(single-byte-value)
+#
 
 """Driver for Davis Weather Monitor II weather station, Should also work with
 Wizzard and Perception but hasn't been tested
@@ -17,6 +27,7 @@ import syslog
 import time
 import datetime
 import struct
+import logging
 
 import weewx.drivers
 import weewx.wxformulas
@@ -26,8 +37,9 @@ from weewx.units import INHG_PER_MBAR, MILE_PER_KM
 from weeutil.weeutil import timestamp_to_string
 
 DRIVER_NAME = "wmII"
-DRIVER_VERSION = "0.3"
+DRIVER_VERSION = "1.0"
 
+log = logging.getLogger(__name__)
 
 def loader(config_dict, _):
     return WMII(**config_dict[DRIVER_NAME])
@@ -37,20 +49,20 @@ def confeditor_loader():
     return WMIIConfEditor()
 
 
-def logmsg(level, msg):
-    syslog.syslog(level, "Weather Monitor II: %s" % msg)
+# def logmsg(level, msg):
+#    log.info(level, "Weather Monitor II: %s" % msg)
 
 
 def logdbg(msg):
-    logmsg(syslog.LOG_DEBUG, msg)
+    log.debug("Weather Monitor II: " + msg)
 
 
 def loginf(msg):
-    logmsg(syslog.LOG_INFO, msg)
+    log.info("Weather Monitor II: " + msg)
 
 
 def logerr(msg):
-    logmsg(syslog.LOG_ERR, msg)
+    log.error("Weather Monitor II: " + msg)
 
 
 class WMII(weewx.drivers.AbstractDevice):
@@ -159,7 +171,7 @@ class Station(object):
         sec = self.fromBCD(ord(d[2:3]))
         d = self.ReadWRD(3, 1, 0xC8)
         day = self.fromBCD(ord(d[0:1]))
-        month = ord(d[1])
+        month = ord(d[1:2])
         logdbg("station time: month:%s day:%s %s:%s:%s" % (month, day, hour, min, sec))
         year = datetime.datetime.now().year
         dt = datetime.datetime(year, month, day, hour, min, sec)
@@ -174,16 +186,18 @@ class Station(object):
             6,
             1,
             0xBE,
-            chr(self.toBCD(hour)) + chr(self.toBCD(min)) + chr(self.toBCD(sec)),
+            (chr(self.toBCD(hour)) + chr(self.toBCD(min)) + 
+               chr(self.toBCD(sec))).encode('utf-8')
         )
         logdbg("set station time = %s:%s:%s" % (hour, min, sec))
         logdbg("Attempting to set Station's Date")
-        self.WriteWRD(3, 1, 0xC8, chr(self.toBCD(day)) + chr(month))
+        self.WriteWRD(3, 1, 0xC8, 
+            (chr(self.toBCD(day)) + chr(month)).encode('utf-8'))
         logdbg("set station date = mont:%s day:%s" % (month, day))
 
     def get_acknowledge(self):
         c = self.serial_port.read(1)
-        if c == "":
+        if len(c) == 0:
             raise weewx.WeeWxIOError("Acknowledge returned empty: %s" % c)
         ACK = 6
         if ord(c) != ACK:
@@ -194,11 +208,10 @@ class Station(object):
             bankval = 2
         elif bank == 1:
             bankval = 4
-        self.serial_port.write(
-            b'WRD' + chr((n << 4) | bankval) + chr(addr & 0x00FF) + chr(0xD)
-        )
+        self.serial_port.write(b'WRD' + ((n << 4) | bankval).to_bytes(1,'little') +
+           (addr & 0x00ff).to_bytes(1,'little') + b'\r')
         self.get_acknowledge()
-        data = self.serial_port.read((n + 1) / 2)
+        data = self.serial_port.read(int((n + 1) / 2))
         return data
 
     def ReadByte(self, bank, addr):
@@ -224,17 +237,19 @@ class Station(object):
             bankval = 1
         elif bank == 1:
             bankval = 3
-        self.serial_port.write(
-            b'WWR' + chr((bankval) | (n << 4)) + chr(addr & 0x00FF) + data + chr(0xD)
-        )
+        #  Assumes being passed *bytes* not a *string*
+        self.serial_port.write(b'WWR' + ((n << 4) | bankval).to_bytes(1,'little') +
+           (addr & 0x00ff).to_bytes(1,'little') + data + b'\r')
         self.get_acknowledge()
 
     def SendSTART(self):
-        self.serial_port.write(b'START' + chr(0x0D))
+        # self.serial_port.write(b'START' + chr(0x0D))
+        self.serial_port.write(b'START\r')
         self.get_acknowledge()
 
     def SendLOOP(self):
-        self.serial_port.write(b'LOOP' + chr(255) + chr(255) + chr(0x0D))
+        # self.serial_port.write(b'LOOP' + chr(255) + chr(255) + chr(0x0D))
+        self.serial_port.write(b'LOOP\xff\xff\r')
         self.get_acknowledge()
 
     def GetCalibration(self):
@@ -275,7 +290,7 @@ class Station(object):
         buf = self.serial_port.read(17)
         if len(buf) != 17:
             raise weewx.WeeWxIOError(
-                "Invalid Lenght of Loop response: len %d" % len(buf)
+                "Invalid Length of Loop response: len %d" % len(buf)
             )
         if weewx.crc16.crc16(buf):  # CRC_checksum
             raise weewx.WeeWxIOError("CRC Checksum error")
@@ -310,7 +325,7 @@ class Station(object):
         1 byte  = outHumidity
         2 bytes = rain_total ---> rain calibration = 100
         2 bytes = not_used
-        2 bytes = CRC_checksum ---> pending implementation
+        2 bytes = CRC_checksum
         """
         if len(raw) != 17:
             warn("wrong size", len(raw))
@@ -332,7 +347,7 @@ class Station(object):
     def toBCD(n):
         if n < 0 or n > 99:
             return 0
-        n1 = n / 10
+        n1 = int(n / 10)
         n2 = n % 10
         m = n1 << 4 | n2
         return m
@@ -406,6 +421,15 @@ if __name__ == "__main__":
         help="serial port to which the station is connected",
         default=Station.DEFAULT_PORT,
     )
+    parser.add_option(
+        "--gettime",dest="gettime",action="store_true",
+        help="Get the current time from the weather station"
+    )
+    parser.add_option(
+        "--settime",dest="settime",action="store_true",
+        help="Get, set and then get the current time from the station"
+    )
+
     (options, args) = parser.parse_args()
 
     if options.version:
@@ -413,6 +437,18 @@ if __name__ == "__main__":
         exit(0)
 
     with Station(options.port, debug_serial=options.debug) as station:
+        if options.gettime or options.settime:
+           print('Retrieving Station Time (1)')
+           stationTime = station.get_time()
+           print('Station Time: ' + 
+              time.asctime(time.localtime(stationTime)))
+           if options.settime:
+              print('Setting station Time...')
+              station.set_time(stationTime)
+              print('Retrieving Station Time (2)')
+              stationTime = station.get_time() 
+              print('Station Time: ' + 
+                 time.asctime(time.localtime(stationTime)))
         while True:
             print(
                 time.time(), station.parse_readings(station.get_readings_with_retry())
