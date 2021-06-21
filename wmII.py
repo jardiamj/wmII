@@ -37,7 +37,7 @@ from weewx.units import INHG_PER_MBAR, MILE_PER_KM
 from weeutil.weeutil import timestamp_to_string
 
 DRIVER_NAME = "wmII"
-DRIVER_VERSION = "0.3 jrj"
+DRIVER_VERSION = "1.0"
 
 log = logging.getLogger(__name__)
 
