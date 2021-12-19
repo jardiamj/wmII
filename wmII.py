@@ -112,15 +112,18 @@ class WMII(weewx.drivers.AbstractDevice):
 
     def genLoopPackets(self):
         while True:
-            packet = {"dateTime": int(time.time() + 0.5), "usUnits": weewx.US}
-            readings = self.station.get_readings_with_retry(
-                self.max_tries, self.retry_wait
-            )
-            data = self.station.parse_readings(readings)
-            packet.update(data)
-            self._augment_packet(packet)
-            yield packet
-            time.sleep(self.loop_interval)
+            try:
+                packet = {"dateTime": int(time.time() + 0.5), "usUnits": weewx.US}
+                readings = self.station.get_readings_with_retry(
+                    self.max_tries, self.retry_wait
+                )
+                data = self.station.parse_readings(readings)
+                packet.update(data)
+                self._augment_packet(packet)
+                yield packet
+                time.sleep(self.loop_interval)
+            except:
+                pass
 
     def _augment_packet(self, packet):
         packet["rain"] = weewx.wxformulas.calculate_rain(
