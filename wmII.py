@@ -283,7 +283,7 @@ class Station(object):
     def get_readings(self):
         self.SendLOOP()
         c = self.serial_port.read(1)
-        if c == "":
+        if not c:
             raise weewx.WeeWxIOError("Invalid header: %s" % c)
         if ord(c) != 1:
             raise weewx.WeeWxIOError("Invalid header: %s" % c)
